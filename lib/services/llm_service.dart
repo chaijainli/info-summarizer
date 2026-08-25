@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/llm_config_model.dart';
-import '../core/classifier.dart';
+import '../core/classification_result.dart';
 
 class LlmService {
   /// 调用 LLM 对文本进行分类

@@ -1,17 +1,6 @@
+import 'classification_result.dart';
 import '../services/llm_service.dart';
 import '../models/llm_config_model.dart';
-
-class ClassificationResult {
-  final String category;
-  final List<String> matchedKeywords;
-  final bool isFromLlm;
-
-  ClassificationResult({
-    required this.category,
-    required this.matchedKeywords,
-    this.isFromLlm = false,
-  });
-}
 
 class AutoClassifier {
   static const String defaultCategory = '其他';

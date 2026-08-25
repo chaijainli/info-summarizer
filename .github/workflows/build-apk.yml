@@ -1,0 +1,53 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Scaffold Flutter project
+        run: |
+          flutter create --android-language=kotlin --org com.example info_summarizer
+          cp -r source/lib info_summarizer/lib
+          cp source/pubspec.yaml info_summarizer/pubspec.yaml
+          cp source/analysis_options.yaml info_summarizer/analysis_options.yaml
+
+      - name: Get dependencies
+        working-directory: info_summarizer
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: info_summarizer
+        run: flutter analyze
+
+      - name: Build APK
+        working-directory: info_summarizer
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.apk
+          path: info_summarizer/build/app/outputs/flutter-apk/app-release.apk

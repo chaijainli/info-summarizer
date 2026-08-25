@@ -1,0 +1,398 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../models/record_model.dart';
+import '../database/db_helper.dart';
+import 'detail_screen.dart';
+
+class HistoryScreen extends StatefulWidget {
+  const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  final _dbHelper = DatabaseHelper.instance;
+  List<InfoRecord> _allRecords = [];
+  List<InfoRecord> _displayRecords = [];
+  String _searchQuery = '';
+  String _filterCategory = '';
+  String _filterPeriod = '全部';
+  bool _isLoading = true;
+
+  final List<String> _periods = ['全部', '今天', '最近7天', '最近30天'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecords();
+  }
+
+  Future<void> _loadRecords() async {
+    setState(() { _isLoading = true; });
+    final records = await _dbHelper.getAllRecords();
+    setState(() {
+      _allRecords = records;
+      _applyFilters();
+      _isLoading = false;
+    });
+  }
+
+  void _applyFilters() {
+    List<InfoRecord> filtered = _allRecords;
+
+    // 按关键词搜索
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((r) =>
+        r.title.contains(_searchQuery) ||
+        r.content.contains(_searchQuery) ||
+        r.summary.contains(_searchQuery)
+      ).toList();
+    }
+
+    // 按分类筛选
+    if (_filterCategory.isNotEmpty) {
+      filtered = filtered.where((r) => r.category == _filterCategory).toList();
+    }
+
+    // 按时间筛选
+    if (_filterPeriod != '全部') {
+      final now = DateTime.now();
+      DateTime cutoff;
+      switch (_filterPeriod) {
+        case '今天':
+          cutoff = DateTime(now.year, now.month, now.day);
+          break;
+        case '最近7天':
+          cutoff = now.subtract(const Duration(days: 7));
+          break;
+        case '最近30天':
+          cutoff = now.subtract(const Duration(days: 30));
+          break;
+        default:
+          cutoff = now.subtract(const Duration(days: 365));
+      }
+      filtered = filtered.where((r) {
+        try {
+          return DateTime.parse(r.createdAt).isAfter(cutoff);
+        } catch (_) {
+          return true;
+        }
+      }).toList();
+    }
+
+    setState(() {
+      _displayRecords = filtered;
+    });
+  }
+
+  Future<void> _showFilterBottomSheet() async {
+    Map<String, int> categoryMap = {};
+    for (var r in _allRecords) {
+      categoryMap[r.category] = (categoryMap[r.category] ?? 0) + 1;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('筛选条件', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const Divider(height: 24),
+
+                  // 时间筛选
+                  const Text('时间范围', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: _periods.map((p) {
+                      bool isSelected = p == _filterPeriod;
+                      return ChoiceChip(
+                        label: Text(p),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          setModalState(() {});
+                          setState(() { _filterPeriod = p; });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 分类筛选
+                  const Text('分类', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      ChoiceChip(
+                        label: const Text('全部'),
+                        selected: _filterCategory.isEmpty,
+                        onSelected: (selected) {
+                          setState(() { _filterCategory = ''; });
+                        },
+                      ),
+                      ...categoryMap.keys.map((cat) {
+                        return ChoiceChip(
+                          label: Text('${cat} (${categoryMap[cat]})'),
+                          selected: cat == _filterCategory,
+                          onSelected: (selected) {
+                            setState(() { _filterCategory = cat; });
+                          },
+                        );
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        child: const Text('重置'),
+                        onPressed: () {
+                          setState(() {
+                            _filterCategory = '';
+                            _filterPeriod = '全部';
+                            _searchQuery = '';
+                          });
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        child: const Text('确认'),
+                        onPressed: () {
+                          _applyFilters();
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _deleteRecord(InfoRecord record) async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('确认删除'),
+        content: Text('确定要删除「${record.title}」吗？'),
+        actions: [
+          TextButton(child: const Text('取消'), onPressed: () => Navigator.pop(context, false)),
+          TextButton(
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await _dbHelper.deleteRecord(record.id!);
+      _loadRecords();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已删除')),
+      );
+    }
+  }
+
+  Color _categoryColor(String category) {
+    switch (category) {
+      case '工作': return Colors.blue;
+      case '生活': return Colors.green;
+      case '学习': return Colors.purple;
+      case '财务': return Colors.orange;
+      case '健康': return Colors.red;
+      case '兴趣': return Colors.teal;
+      default: return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('历史记录'),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterBottomSheet,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // 搜索栏
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: '搜索记录...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() { _searchQuery = ''; });
+                          _applyFilters();
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              onChanged: (val) {
+                setState(() { _searchQuery = val; });
+                _applyFilters();
+              },
+            ),
+          ),
+
+          // 当前筛选信息
+          if (_filterCategory.isNotEmpty || _filterPeriod != '全部')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  ...(_filterCategory.isNotEmpty ? [
+                    Chip(
+                      label: Text('分类: $_filterCategory'),
+                      deleteIcon: const Icon(Icons.close, size: 14),
+                      onDeleted: () {
+                        setState(() { _filterCategory = ''; });
+                        _applyFilters();
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                  ] : []),
+                  ...(_filterPeriod != '全部' ? [
+                    Chip(
+                      label: Text('时间: $_filterPeriod'),
+                      deleteIcon: const Icon(Icons.close, size: 14),
+                      onDeleted: () {
+                        setState(() { _filterPeriod = '全部'; });
+                        _applyFilters();
+                      },
+                    ),
+                  ] : []),
+                  const Spacer(),
+                  Text(
+                    '共 ${_displayRecords.length} 条',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                ],
+              ),
+            ),
+
+          // 记录列表
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _displayRecords.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.inbox, size: 64, color: Colors.grey[300]),
+                            const SizedBox(height: 12),
+                            Text(
+                              '暂无记录',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _searchQuery.isNotEmpty
+                                  ? '未找到匹配的记录'
+                                  : '开始输入信息，系统会自动分类并记录',
+                              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _displayRecords.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final record = _displayRecords[index];
+                          return _buildRecordCard(record);
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecordCard(InfoRecord record) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        leading: CircleAvatar(
+          backgroundColor: _categoryColor(record.category),
+          child: Text(
+            record.category.isNotEmpty ? record.category[0] : '其',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+          ),
+        ),
+        title: Text(
+          record.title,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              record.summary,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: Colors.grey[700], fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.category, size: 12, color: Colors.grey[500]),
+                const SizedBox(width: 2),
+                Text(record.category, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                const SizedBox(width: 12),
+                Icon(Icons.schedule, size: 12, color: Colors.grey[500]),
+                const SizedBox(width: 2),
+                Text(
+                  DateFormat('yyyy-MM-dd HH:mm').format(DateTime.parse(record.createdAt)),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ],
+            ),
+          ],
+        ),
+        trailing: Icon(Icons.delete, color: Colors.grey[400]),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (c) => DetailScreen(recordId: record.id!)),
+          );
+        },
+        onLongPress: () => _deleteRecord(record),
+      ),
+    );
+  }
+}

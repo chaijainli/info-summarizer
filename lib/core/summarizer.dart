@@ -50,8 +50,23 @@ class TextSummarizer {
     return summarize(text, maxLength: maxLength);
   }
 
+  /// 智能标题提取：LLM 开启时用 LLM，否则用本地规则
+  Future<String> extractTitleSmart(String text, LlmConfig? llmConfig,
+      {int maxLength = 10}) async {
+    if (llmConfig?.enabled == true && text.isNotEmpty) {
+      final llmTitle = await LlmService.extractTitleWithLlm(llmConfig!, text);
+      if (llmTitle != null && llmTitle.isNotEmpty) {
+        if (llmTitle.length > maxLength) {
+          return llmTitle.substring(0, maxLength);
+        }
+        return llmTitle;
+      }
+    }
+    return extractTitle(text, maxLength: maxLength);
+  }
+
   /// 从文本中提取标题
-  String extractTitle(String text, {int maxLength = 20}) {
+  String extractTitle(String text, {int maxLength = 10}) {
     if (text.isEmpty) return '未命名记录';
 
     List<String> lines = text.split('\n')

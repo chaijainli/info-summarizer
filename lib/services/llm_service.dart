@@ -26,6 +26,16 @@ class LlmService {
     return result;
   }
 
+  /// 调用 LLM 提取 10 字以内标题
+  static Future<String?> extractTitleWithLlm(LlmConfig config, String text) async {
+    if (config.apiKey.isEmpty) return null;
+
+    final prompt = _buildTitlePrompt(text);
+    final result = await _callLlmRaw(config, prompt);
+    if (result == null || result.trim().isEmpty) return null;
+    return result.trim();
+  }
+
   /// 测试 API 连通性
   static Future<String> testConnection(LlmConfig config) async {
     if (config.apiKey.isEmpty) {
@@ -156,6 +166,20 @@ $text''';
 2. 保持原意，不要编造信息
 3. 输出简洁的摘要文本，不超过100字
 4. 只输出摘要内容，不要其他解释
+
+原始文本：
+$text''';
+  }
+
+  /// 构建标题提取提示词
+  static String _buildTitlePrompt(String text) {
+    return '''你是一个专业的标题生成助手。请根据以下文本的全部内容，提炼一个简洁标题。
+
+要求：
+1. 综合全文内容，不要只看第一行
+2. 标题不超过10个汉字
+3. 概括核心信息，言简意赅
+4. 只输出标题文字，不要引号、不要其他解释
 
 原始文本：
 $text''';

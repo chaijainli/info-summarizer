@@ -73,8 +73,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() { _isSaving = true; });
 
+    // 智能标题提取：LLM 开启时用大模型综合全文生成，否则用本地规则
     String title = _titleController.text.trim().isEmpty
-        ? _summarizer.extractTitle(content)
+        ? await _summarizer.extractTitleSmart(content, _llmConfig, maxLength: 10)
         : _titleController.text.trim();
 
     // 智能摘要：LLM 开启时用 LLM，否则用本地规则

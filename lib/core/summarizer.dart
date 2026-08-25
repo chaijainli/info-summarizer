@@ -1,3 +1,6 @@
+import '../services/llm_service.dart';
+import '../models/llm_config_model.dart';
+
 class TextSummarizer {
   final Set<String> fillerWords = {
     '的', '了', '是', '在', '有', '和', '就', '都', '也', '很', '要', '会',
@@ -8,19 +11,16 @@ class TextSummarizer {
     '而且', '另外', '总之', '基本上',
   };
 
-  /// 精简文本：去除冗余行、清理行首序号、合并多余空格
+  /// 本地规则精简文本
   String summarize(String text, {int? maxLength}) {
     if (text.isEmpty) return '';
 
     List<String> lines = text.split('\n');
-
-    // 去空行和纯标点行
     lines = lines
         .map((l) => l.trim())
         .where((l) => l.isNotEmpty && !_isNoiseLine(l))
         .toList();
 
-    // 清理每行
     List<String> cleanedLines = [];
     for (var line in lines) {
       String cleaned = _cleanLine(line);
@@ -31,12 +31,23 @@ class TextSummarizer {
 
     String result = cleanedLines.join('\n');
 
-    // 超长截断
     if (maxLength != null && result.length > maxLength) {
       result = _extractKeySentences(result, maxLength);
     }
 
     return result;
+  }
+
+  /// 智能摘要：LLM 开启时用 LLM，否则用本地规则
+  Future<String> summarizeSmart(String text, LlmConfig? llmConfig,
+      {int? maxLength}) async {
+    if (llmConfig?.enabled == true && text.isNotEmpty) {
+      final llmSummary = await LlmService.summarizeWithLlm(llmConfig!, text);
+      if (llmSummary != null && llmSummary.isNotEmpty) {
+        return llmSummary;
+      }
+    }
+    return summarize(text, maxLength: maxLength);
   }
 
   /// 从文本中提取标题

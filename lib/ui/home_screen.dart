@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/record_model.dart';
+import '../models/llm_config_model.dart';
 import '../database/db_helper.dart';
+import '../database/llm_config_db.dart';
 import '../core/classifier.dart';
 import '../core/summarizer.dart';
 import 'history_screen.dart';
 import 'detail_screen.dart';
 import 'category_screen.dart';
+import 'llm_settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,19 +21,30 @@ class _HomeScreenState extends State<HomeScreen> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _dbHelper = DatabaseHelper.instance;
+  final _llmDb = LlmConfigDb.instance;
   final _classifier = AutoClassifier();
   final _summarizer = TextSummarizer();
 
   String _autoCategory = '其他';
   List<String> _matchedKeywords = [];
   List<InfoRecord> _recentRecords = [];
-  bool _isLoading = false;
   bool _isSaving = false;
+  bool _llmEnabled = false;
+  LlmConfig? _llmConfig;
 
   @override
   void initState() {
     super.initState();
     _loadRecentRecords();
+    _loadLlmConfig();
+  }
+
+  Future<void> _loadLlmConfig() async {
+    final config = await _llmDb.getConfig();
+    setState(() {
+      _llmConfig = config;
+      _llmEnabled = config.enabled;
+    });
   }
 
   Future<void> _loadRecentRecords() async {
@@ -63,7 +77,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ? _summarizer.extractTitle(content)
         : _titleController.text.trim();
 
-    String summary = _summarizer.summarize(content, maxLength: 200);
+    // 智能摘要：LLM 开启时用 LLM，否则用本地规则
+    String summary = await _summarizer.summarizeSmart(
+      content, _llmConfig, maxLength: 200,
+    );
+
+    // 智能分类：LLM 开启时用 LLM，否则用本地关键词
+    ClassificationResult classifyResult = await _classifier.classifySmart(
+      content, _llmConfig,
+    );
+    _autoCategory = classifyResult.category;
+
     String now = DateTime.now().toIso8601String();
 
     final record = InfoRecord(
@@ -86,7 +110,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     _loadRecentRecords();
-    _showSnackBar('已保存 · 分类：$_autoCategory');
+    String methodTag = _llmEnabled ? '🧠 大模型' : '🔍 关键词';
+    _showSnackBar('已保存 · 分类：$_autoCategory · $methodTag');
   }
 
   Future<void> _shareRecord() async {
@@ -142,6 +167,20 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: '分类管理',
             onPressed: _editCategory,
           ),
+          IconButton(
+            icon: Icon(
+              Icons.smart_toy,
+              color: _llmEnabled ? Colors.purple : null,
+            ),
+            tooltip: '大模型配置',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (c) => const LlmSettingsScreen()),
+              );
+              _loadLlmConfig();
+            },
+          ),
         ],
       ),
       body: Column(
@@ -192,6 +231,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: 8),
                         _buildCategoryChip(_autoCategory),
                         const SizedBox(width: 8),
+                        if (_llmEnabled) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.purple[100],
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.smart_toy, size: 11, color: Colors.purple[700]),
+                                const SizedBox(width: 3),
+                                Text('AI', style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple[700],
+                                )),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
                         Expanded(
                           child: _matchedKeywords.isNotEmpty
                               ? Text(

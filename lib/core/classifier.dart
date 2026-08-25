@@ -1,8 +1,16 @@
+import '../services/llm_service.dart';
+import '../models/llm_config_model.dart';
+
 class ClassificationResult {
   final String category;
   final List<String> matchedKeywords;
+  final bool isFromLlm;
 
-  ClassificationResult({required this.category, required this.matchedKeywords});
+  ClassificationResult({
+    required this.category,
+    required this.matchedKeywords,
+    this.isFromLlm = false,
+  });
 }
 
 class AutoClassifier {
@@ -17,7 +25,29 @@ class AutoClassifier {
     '兴趣': ['游戏', '音乐', '视频', '追剧', '追星', '绘画', '手工', '摄影', '美食'],
   };
 
+  /// 本地关键词分类
   ClassificationResult classify(String text) {
+    return _classifyLocal(text);
+  }
+
+  /// 智能分类：LLM 开启时用 LLM，否则用本地关键词
+  Future<ClassificationResult> classifySmart(String text, LlmConfig? llmConfig) async {
+    if (llmConfig?.enabled == true && text.isNotEmpty) {
+      final llmResult = await LlmService.classifyWithLlm(
+        llmConfig!, text, categories,
+      );
+      if (llmResult != null) {
+        return ClassificationResult(
+          category: llmResult.category,
+          matchedKeywords: [],
+          isFromLlm: true,
+        );
+      }
+    }
+    return _classifyLocal(text);
+  }
+
+  ClassificationResult _classifyLocal(String text) {
     if (text.isEmpty) {
       return ClassificationResult(category: defaultCategory, matchedKeywords: []);
     }

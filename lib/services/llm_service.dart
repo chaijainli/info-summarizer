@@ -5,48 +5,55 @@ import '../core/classification_result.dart';
 
 class LlmService {
   /// 调用 LLM 对文本进行分类
-  /// 返回 JSON 格式: {"category": "工作", "reason": "..."}
   static Future<ClassificationResult?> classifyWithLlm(
     LlmConfig config,
     String text,
-    List<String> availableCategories,
-  ) async {
-    if (config.apiKey.isEmpty) return null;
-
+    List<String> availableCategories, {
+    String apiKey = '',
+  }) async {
+    if (apiKey.isEmpty) return null;
     final prompt = _buildClassifyPrompt(text, availableCategories);
-    return _callLlm(config, prompt);
+    return _callLlm(config, prompt, apiKey: apiKey);
   }
 
   /// 调用 LLM 对文本进行精简摘要
-  static Future<String?> summarizeWithLlm(LlmConfig config, String text) async {
-    if (config.apiKey.isEmpty) return null;
-
+  static Future<String?> summarizeWithLlm(
+    LlmConfig config,
+    String text, {
+    String apiKey = '',
+  }) async {
+    if (apiKey.isEmpty) return null;
     final prompt = _buildSummarizePrompt(text);
-    final result = await _callLlmRaw(config, prompt);
+    final result = await _callLlmRaw(config, prompt, apiKey: apiKey);
     return result;
   }
 
   /// 调用 LLM 提取 10 字以内标题
-  static Future<String?> extractTitleWithLlm(LlmConfig config, String text) async {
-    if (config.apiKey.isEmpty) return null;
-
+  static Future<String?> extractTitleWithLlm(
+    LlmConfig config,
+    String text, {
+    String apiKey = '',
+  }) async {
+    if (apiKey.isEmpty) return null;
     final prompt = _buildTitlePrompt(text);
-    final result = await _callLlmRaw(config, prompt);
+    final result = await _callLlmRaw(config, prompt, apiKey: apiKey);
     if (result == null || result.trim().isEmpty) return null;
     return result.trim();
   }
 
   /// 测试 API 连通性
-  static Future<String> testConnection(LlmConfig config) async {
-    if (config.apiKey.isEmpty) {
+  static Future<String> testConnection(
+    LlmConfig config, {
+    String apiKey = '',
+  }) async {
+    if (apiKey.isEmpty) {
       return 'API Key 不能为空';
     }
 
     final url = Uri.parse('${config.baseUrl.trim()}/chat/completions');
-
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${config.apiKey}',
+      'Authorization': 'Bearer $apiKey',
     };
 
     final body = jsonEncode({
@@ -76,9 +83,10 @@ class LlmService {
   /// 调用 LLM，返回 ClassificationResult
   static Future<ClassificationResult?> _callLlm(
     LlmConfig config,
-    String prompt,
-  ) async {
-    final raw = await _callLlmRaw(config, prompt);
+    String prompt, {
+    required String apiKey,
+  }) async {
+    final raw = await _callLlmRaw(config, prompt, apiKey: apiKey);
     if (raw == null || raw.isEmpty) return null;
 
     try {
@@ -88,7 +96,6 @@ class LlmService {
         return ClassificationResult(category: category, matchedKeywords: []);
       }
     } catch (_) {
-      // 不是 JSON，尝试直接提取分类名
       final text = raw.trim().replaceAll('`', '');
       return ClassificationResult(category: text, matchedKeywords: []);
     }
@@ -96,12 +103,15 @@ class LlmService {
   }
 
   /// 调用 LLM，返回原始文本
-  static Future<String?> _callLlmRaw(LlmConfig config, String prompt) async {
+  static Future<String?> _callLlmRaw(
+    LlmConfig config,
+    String prompt, {
+    required String apiKey,
+  }) async {
     final url = Uri.parse('${config.baseUrl.trim()}/chat/completions');
-
     final headers = {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${config.apiKey}',
+      'Authorization': 'Bearer $apiKey',
     };
 
     final messages = <Map<String, String>>[];

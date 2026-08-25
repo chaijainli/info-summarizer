@@ -20,10 +20,14 @@ class AutoClassifier {
   }
 
   /// 智能分类：LLM 开启时用 LLM，否则用本地关键词
-  Future<ClassificationResult> classifySmart(String text, LlmConfig? llmConfig) async {
-    if (llmConfig?.enabled == true && text.isNotEmpty) {
+  Future<ClassificationResult> classifySmart(
+    String text,
+    LlmConfig? llmConfig, {
+    String apiKey = '',
+  }) async {
+    if (llmConfig?.enabled == true && text.isNotEmpty && apiKey.isNotEmpty) {
       final llmResult = await LlmService.classifyWithLlm(
-        llmConfig!, text, categories,
+        llmConfig!, text, categories, apiKey: apiKey,
       );
       if (llmResult != null) {
         return ClassificationResult(

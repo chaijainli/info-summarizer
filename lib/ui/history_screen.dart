@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/record_model.dart';
 import '../database/db_helper.dart';
 import '../core/fuzzy_search.dart';
+import '../utils/debounce.dart';
 import 'detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -15,10 +16,13 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   final _dbHelper = DatabaseHelper.instance;
   final _searchFocus = FocusNode();
+  final _searchDebouncer = SearchDebouncer();
+  final _suggestionCache = SearchSuggestionCache();
 
   List<InfoRecord> _allRecords = [];
   List<SearchMatch> _searchResults = [];
   String _searchQuery = '';
+  String _displayQuery = '';
   String _filterCategory = '';
   String _filterPeriod = '全部';
   bool _isLoading = true;
@@ -75,9 +79,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }).toList();
     }
 
-    // 模糊搜索
+    // 模糊搜索（使用防抖后的查询值）
+    final query = _displayQuery;
     setState(() {
-      _searchResults = FuzzySearch.search(filtered, _searchQuery);
+      _searchResults = FuzzySearch.search(filtered, query);
     });
   }
 
@@ -206,14 +211,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  /// 搜索建议：基于当前输入显示匹配的高频关键词
+  /// 搜索建议：基于当前输入显示匹配的高频关键词（带缓存）
   List<String> _getSuggestions() {
-    if (_searchQuery.isEmpty) return [];
+    if (_displayQuery.isEmpty) return [];
     final topKws = FuzzySearch.getTopKeywords(_allRecords, limit: 30);
-    return topKws.keys
-        .where((kw) => kw.contains(_searchQuery))
-        .take(5)
-        .toList();
+    return _suggestionCache.get(query: _displayQuery, allKeywords: topKws);
   }
 
   Color _categoryColor(String category) {
@@ -258,7 +260,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ? IconButton(
                             icon: const Icon(Icons.clear),
                             onPressed: () {
-                              setState(() { _searchQuery = ''; });
+                              setState(() {
+                                _searchQuery = '';
+                                _displayQuery = '';
+                              });
                               _applyFilters();
                             },
                           )
@@ -268,13 +273,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     fillColor: Colors.grey[100],
                   ),
                   onChanged: (val) {
-                    setState(() { _searchQuery = val; });
-                    _applyFilters();
+                    setState(() {
+                      _searchQuery = val;
+                      _displayQuery = val; // 实时更新显示（建议），防抖后触发搜索
+                    });
+                    // 防抖 300ms 后再执行搜索
+                    _searchDebouncer.run(val, (query) {
+                      if (!mounted) return;
+                      setState(() { _displayQuery = query; });
+                      _applyFilters();
+                    }, delay: const Duration(milliseconds: 300));
                   },
                 ),
 
                 // 搜索建议
-                if (_searchQuery.isNotEmpty && !_isLoading)
+                if (_displayQuery.isNotEmpty && !_isLoading)
                   Container(
                     margin: const EdgeInsets.only(top: 4),
                     padding: const EdgeInsets.symmetric(vertical: 4),
@@ -287,6 +300,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           onPressed: () {
                             setState(() {
                               _searchQuery = '${_searchQuery} $suggestion';
+                              _displayQuery = _searchQuery;
                             });
                             _applyFilters();
                           },
@@ -299,18 +313,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
 
           // 筛选标签 + 结果数
-          if (_filterCategory.isNotEmpty || _filterPeriod != '全部' || _searchQuery.isNotEmpty)
+          if (_filterCategory.isNotEmpty || _filterPeriod != '全部' || _displayQuery.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
-                  if (_searchQuery.isNotEmpty)
+                  if (_displayQuery.isNotEmpty)
                     ...[
                       Chip(
-                        label: Text('搜索: "$_searchQuery"'),
+                        label: Text('搜索: "$_displayQuery"'),
                         deleteIcon: const Icon(Icons.close, size: 14),
                         onDeleted: () {
-                          setState(() { _searchQuery = ''; });
+                          setState(() {
+                            _searchQuery = '';
+                            _displayQuery = '';
+                          });
                           _applyFilters();
                         },
                       ),
@@ -383,7 +400,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            _searchQuery.isNotEmpty
+            _displayQuery.isNotEmpty
                 ? '未找到匹配的记录，试试其他关键词'
                 : '开始输入信息，系统会自动分类并记录',
             style: TextStyle(color: Colors.grey[400], fontSize: 12),
@@ -552,6 +569,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void dispose() {
     _searchFocus.dispose();
+    _searchDebouncer.dispose();
     super.dispose();
   }
 }

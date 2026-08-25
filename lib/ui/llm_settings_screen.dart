@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/llm_config_model.dart';
 import '../database/llm_config_db.dart';
 import '../services/llm_service.dart';
+import '../utils/secure_storage.dart';
 
 class LlmSettingsScreen extends StatefulWidget {
   const LlmSettingsScreen({super.key});
@@ -11,7 +12,6 @@ class LlmSettingsScreen extends StatefulWidget {
 }
 
 class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
-  final _providerController = TextEditingController();
   final _baseUrlController = TextEditingController();
   final _apiKeyController = TextEditingController();
   final _modelNameController = TextEditingController();
@@ -33,11 +33,11 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
 
   Future<void> _loadConfig() async {
     final config = await _db.getConfig();
+    final apiKey = await SecureStorage.instance.getApiKey() ?? '';
     setState(() {
       _enabled = config.enabled;
-      _providerController.text = config.provider;
       _baseUrlController.text = config.baseUrl;
-      _apiKeyController.text = config.apiKey;
+      _apiKeyController.text = apiKey;
       _modelNameController.text = config.modelName;
       _temperatureController.text = config.temperature.toStringAsFixed(1);
       _maxTokensController.text = config.maxTokens.toString();
@@ -49,9 +49,8 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
     setState(() { _isSaving = true; });
 
     final config = LlmConfig(
-      provider: _providerController.text.trim() ?? 'openai',
+      provider: 'openai',
       baseUrl: _baseUrlController.text.trim(),
-      apiKey: _apiKeyController.text.trim(),
       modelName: _modelNameController.text.trim(),
       temperature: double.tryParse(_temperatureController.text) ?? 0.3,
       maxTokens: int.tryParse(_maxTokensController.text) ?? 200,
@@ -63,13 +62,17 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
 
     await _db.saveConfig(config);
 
+    // API Key 使用加密存储
+    await SecureStorage.instance.saveApiKey(_apiKeyController.text.trim());
+    await SecureStorage.instance.saveLlmEnabled(_enabled);
+
     setState(() {
       _isSaving = false;
       _testResult = null;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('配置已保存'), duration: const Duration(seconds: 2))
+      SnackBar(content: Text('配置已保存（API Key 已加密）'), duration: const Duration(seconds: 2))
     );
   }
 
@@ -77,13 +80,14 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
     setState(() { _isTesting = true; _testResult = null; });
 
     final config = LlmConfig(
-      provider: _providerController.text.trim() ?? 'openai',
+      provider: 'openai',
       baseUrl: _baseUrlController.text.trim(),
-      apiKey: _apiKeyController.text.trim(),
       modelName: _modelNameController.text.trim(),
     );
 
-    final result = await LlmService.testConnection(config);
+    final result = await LlmService.testConnection(
+      config, apiKey: _apiKeyController.text.trim(),
+    );
 
     setState(() {
       _isTesting = false;
@@ -322,7 +326,6 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
 
   @override
   void dispose() {
-    _providerController.dispose();
     _baseUrlController.dispose();
     _apiKeyController.dispose();
     _modelNameController.dispose();

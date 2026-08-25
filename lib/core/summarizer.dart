@@ -39,10 +39,16 @@ class TextSummarizer {
   }
 
   /// 智能摘要：LLM 开启时用 LLM，否则用本地规则
-  Future<String> summarizeSmart(String text, LlmConfig? llmConfig,
-      {int? maxLength}) async {
-    if (llmConfig?.enabled == true && text.isNotEmpty) {
-      final llmSummary = await LlmService.summarizeWithLlm(llmConfig!, text);
+  Future<String> summarizeSmart(
+    String text,
+    LlmConfig? llmConfig, {
+    int? maxLength,
+    String apiKey = '',
+  }) async {
+    if (llmConfig?.enabled == true && text.isNotEmpty && apiKey.isNotEmpty) {
+      final llmSummary = await LlmService.summarizeWithLlm(
+        llmConfig!, text, apiKey: apiKey,
+      );
       if (llmSummary != null && llmSummary.isNotEmpty) {
         return llmSummary;
       }
@@ -51,10 +57,16 @@ class TextSummarizer {
   }
 
   /// 智能标题提取：LLM 开启时用 LLM，否则用本地规则
-  Future<String> extractTitleSmart(String text, LlmConfig? llmConfig,
-      {int maxLength = 10}) async {
-    if (llmConfig?.enabled == true && text.isNotEmpty) {
-      final llmTitle = await LlmService.extractTitleWithLlm(llmConfig!, text);
+  Future<String> extractTitleSmart(
+    String text,
+    LlmConfig? llmConfig, {
+    int maxLength = 10,
+    String apiKey = '',
+  }) async {
+    if (llmConfig?.enabled == true && text.isNotEmpty && apiKey.isNotEmpty) {
+      final llmTitle = await LlmService.extractTitleWithLlm(
+        llmConfig!, text, apiKey: apiKey,
+      );
       if (llmTitle != null && llmTitle.isNotEmpty) {
         if (llmTitle.length > maxLength) {
           return llmTitle.substring(0, maxLength);

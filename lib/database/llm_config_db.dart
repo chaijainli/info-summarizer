@@ -21,7 +21,7 @@ class LlmConfigDb {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // 升级到 v2：移除 api_key 列（改用加密存储）
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE llm_config (
@@ -36,6 +36,24 @@ class LlmConfigDb {
             system_prompt TEXT
           )
         ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // 旧表含有 api_key，重建为不含 api_key 的新表
+          await db.execute('DROP TABLE IF EXISTS llm_config');
+          await db.execute('''
+            CREATE TABLE llm_config (
+              id INTEGER PRIMARY KEY,
+              provider TEXT NOT NULL DEFAULT 'openai',
+              base_url TEXT NOT NULL,
+              model_name TEXT NOT NULL,
+              temperature REAL NOT NULL DEFAULT 0.3,
+              max_tokens INTEGER NOT NULL DEFAULT 200,
+              enabled INTEGER NOT NULL DEFAULT 0,
+              system_prompt TEXT
+            )
+          ''');
+        }
       },
     );
   }

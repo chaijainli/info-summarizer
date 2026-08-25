@@ -1,7 +1,6 @@
 class LlmConfig {
   final String provider;
   final String baseUrl;
-  final String apiKey;
   final String modelName;
   final double temperature;
   final int maxTokens;
@@ -11,7 +10,6 @@ class LlmConfig {
   LlmConfig({
     required this.provider,
     required this.baseUrl,
-    required this.apiKey,
     required this.modelName,
     this.temperature = 0.3,
     this.maxTokens = 200,
@@ -23,7 +21,6 @@ class LlmConfig {
     return {
       'provider': provider,
       'base_url': baseUrl,
-      'api_key': apiKey,
       'model_name': modelName,
       'temperature': temperature,
       'max_tokens': maxTokens,
@@ -36,7 +33,6 @@ class LlmConfig {
     return LlmConfig(
       provider: map['provider'] ?? 'openai',
       baseUrl: map['base_url'] ?? '',
-      apiKey: map['api_key'] ?? '',
       modelName: map['model_name'] ?? '',
       temperature: (map['temperature'] as num?)?.toDouble() ?? 0.3,
       maxTokens: (map['max_tokens'] as int?) ?? 200,
@@ -51,7 +47,6 @@ class LlmConfig {
     return LlmConfig(
       provider: 'openai',
       baseUrl: 'https://api.openai.com/v1',
-      apiKey: '',
       modelName: 'gpt-4o-mini',
     );
   }

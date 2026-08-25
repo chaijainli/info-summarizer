@@ -5,6 +5,8 @@ import '../database/db_helper.dart';
 import '../database/llm_config_db.dart';
 import '../core/classifier.dart';
 import '../core/summarizer.dart';
+import '../utils/debounce.dart';
+import '../utils/secure_storage.dart';
 import 'history_screen.dart';
 import 'detail_screen.dart';
 import 'category_screen.dart';
@@ -24,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final _llmDb = LlmConfigDb.instance;
   final _classifier = AutoClassifier();
   final _summarizer = TextSummarizer();
+  final _debouncer = Debouncer();
+  final _saveThrottler = Throttler();
 
   String _autoCategory = '其他';
   List<String> _matchedKeywords = [];
@@ -31,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSaving = false;
   bool _llmEnabled = false;
   LlmConfig? _llmConfig;
+  String _apiKey = '';
 
   @override
   void initState() {
@@ -41,9 +46,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadLlmConfig() async {
     final config = await _llmDb.getConfig();
+    final key = await SecureStorage.instance.getApiKey() ?? '';
     setState(() {
       _llmConfig = config;
       _llmEnabled = config.enabled;
+      _apiKey = key;
     });
   }
 
@@ -65,6 +72,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _saveRecord() async {
+    _saveThrottler.throttleAsync(
+      () async {
+        if (!mounted) return;
+        await _doSaveRecord();
+      },
+      minInterval: const Duration(seconds: 3),
+    );
+  }
+
+  Future<void> _doSaveRecord() async {
     String content = _contentController.text.trim();
     if (content.isEmpty) {
       _showSnackBar('请输入内容后再保存');
@@ -75,17 +92,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 智能标题提取：LLM 开启时用大模型综合全文生成，否则用本地规则
     String title = _titleController.text.trim().isEmpty
-        ? await _summarizer.extractTitleSmart(content, _llmConfig, maxLength: 10)
+        ? await _summarizer.extractTitleSmart(
+            content, _llmConfig, maxLength: 10, apiKey: _apiKey)
         : _titleController.text.trim();
 
     // 智能摘要：LLM 开启时用 LLM，否则用本地规则
     String summary = await _summarizer.summarizeSmart(
-      content, _llmConfig, maxLength: 200,
+      content, _llmConfig, maxLength: 200, apiKey: _apiKey,
     );
 
     // 智能分类：LLM 开启时用 LLM，否则用本地关键词
     ClassificationResult classifyResult = await _classifier.classifySmart(
-      content, _llmConfig,
+      content, _llmConfig, apiKey: _apiKey,
     );
     _autoCategory = classifyResult.category;
 
@@ -101,6 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     await _dbHelper.insertRecord(record);
+
+    if (!mounted) return;
 
     setState(() {
       _isSaving = false;
@@ -438,6 +458,8 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _debouncer.dispose();
+    _saveThrottler.dispose();
     super.dispose();
   }
 }

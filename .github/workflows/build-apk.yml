@@ -26,9 +26,10 @@ jobs:
           channel: 'stable'
 
       - name: Decode keystore
-        if: ${{ secrets.KEYSTORE_FILE != '' }}
         run: |
-          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > android/app/upload-keystore.jks
+          if [ -n "$KEYSTORE_FILE" ]; then
+            echo "$KEYSTORE_FILE" | base64 --decode > android/app/upload-keystore.jks
+          fi
         env:
           KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}

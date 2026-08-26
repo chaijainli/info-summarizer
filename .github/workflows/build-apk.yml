@@ -29,6 +29,7 @@ jobs:
         run: |
           wget -q -O android/gradle/wrapper/gradle-wrapper.jar \
             https://github.com/gradle/gradle/raw/v8.3.0/gradle/wrapper/gradle-wrapper.jar
+          chmod +x android/gradlew
 
       - name: Decode keystore
         run: |

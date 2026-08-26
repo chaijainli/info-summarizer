@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          path: source
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -27,27 +25,37 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Scaffold Flutter project
+      - name: Decode keystore
+        if: ${{ secrets.KEYSTORE_FILE != '' }}
         run: |
-          flutter create --android-language=kotlin --org com.example info_summarizer
-          cp -r source/lib info_summarizer/lib
-          cp source/pubspec.yaml info_summarizer/pubspec.yaml
-          cp source/analysis_options.yaml info_summarizer/analysis_options.yaml
+          echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > android/app/upload-keystore.jks
+        env:
+          KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Get dependencies
-        working-directory: info_summarizer
         run: flutter pub get
 
       - name: Analyze
-        working-directory: info_summarizer
         run: flutter analyze
 
       - name: Build APK
-        working-directory: info_summarizer
         run: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release.apk
-          path: info_summarizer/build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: Release ${{ github.run_number }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

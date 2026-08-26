@@ -71,8 +71,9 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
       _testResult = null;
     });
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('配置已保存（API Key 已加密）'), duration: const Duration(seconds: 2))
+      const SnackBar(content: Text('配置已保存（API Key 已加密）'), duration: Duration(seconds: 2))
     );
   }
 

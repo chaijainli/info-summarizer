@@ -144,11 +144,11 @@ class _DetailScreenState extends State<DetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(Icons.summarize, size: 18),
-                      const SizedBox(width: 8),
-                      const Text('智能摘要', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Icon(Icons.summarize, size: 18),
+                      SizedBox(width: 8),
+                      Text('智能摘要', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ],
                   ),
                   const SizedBox(height: 10),

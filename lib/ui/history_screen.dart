@@ -300,7 +300,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           label: Text(suggestion, style: const TextStyle(fontSize: 11)),
                           onPressed: () {
                             setState(() {
-                              _searchQuery = '${_searchQuery} $suggestion';
+                              _searchQuery = '$_searchQuery $suggestion';
                               _displayQuery = _searchQuery;
                             });
                             _applyFilters();

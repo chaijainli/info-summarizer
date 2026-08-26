@@ -97,7 +97,7 @@ class TextSummarizer {
     String title = firstLine.trim();
 
     if (title.length > maxLength) {
-      title = title.substring(0, maxLength) + '…';
+      title = '${title.substring(0, maxLength)}…';
     }
 
     return title.isNotEmpty ? title : '未命名记录';

@@ -133,13 +133,13 @@ class TextSummarizer {
         text.split(RegExp(r'(?<=[。！？!?.])\s*'));
 
     if (sentences.length <= 1) {
-      return text.length > maxLength ? text.substring(0, maxLength) + '…' : text;
+      return text.length > maxLength ? '${text.substring(0, maxLength)}…' : text;
     }
 
     int keepCount = (sentences.length / 2).ceil();
     keepCount = keepCount > 1 ? keepCount : 1;
 
     String result = sentences.sublist(0, keepCount).join('');
-    return result.length > maxLength ? result.substring(0, maxLength) + '…' : result;
+    return result.length > maxLength ? '${result.substring(0, maxLength)}…' : result;
   }
 }

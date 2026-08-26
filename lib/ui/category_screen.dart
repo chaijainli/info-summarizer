@@ -11,7 +11,7 @@ class CategoryScreen extends StatefulWidget {
 class _CategoryScreenState extends State<CategoryScreen> {
   final _dbHelper = DatabaseHelper.instance;
 
-  Map<String, int> _categoryCounts = {};
+  final Map<String, int> _categoryCounts = {};
   bool _isLoading = true;
 
   // 内置分类及颜色
@@ -142,7 +142,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            '${count} 条',
+            '$count 条',
             style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
           ),
         ),

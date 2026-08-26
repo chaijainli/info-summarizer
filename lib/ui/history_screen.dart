@@ -145,7 +145,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                       ...categoryMap.keys.map((cat) {
                         return ChoiceChip(
-                          label: Text('${cat} (${categoryMap[cat]})'),
+                          label: Text('$cat (${categoryMap[cat]})'),
                           selected: cat == _filterCategory,
                           onSelected: (selected) {
                             setState(() { _filterCategory = cat; });
@@ -205,6 +205,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (confirm == true) {
       await _dbHelper.deleteRecord(record.id!);
       _loadRecords();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('已删除')),
       );

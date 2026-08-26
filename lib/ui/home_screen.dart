@@ -4,6 +4,7 @@ import '../models/llm_config_model.dart';
 import '../database/db_helper.dart';
 import '../database/llm_config_db.dart';
 import '../core/classifier.dart';
+import '../core/classification_result.dart';
 import '../core/summarizer.dart';
 import '../utils/debounce.dart';
 import '../utils/secure_storage.dart';
@@ -140,10 +141,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (content.isEmpty) return;
 
     String summary = _summarizer.summarize(content, maxLength: 300);
-    String shareText = '【信息摘要】\n$summary\n\n[分类：$_autoCategory]';
-    // share_plus 可在此使用 Share.share(shareText)
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('摘要已生成，可通过系统分享按钮发送'))
+      SnackBar(content: Text('【信息摘要】\n$summary\n\n[分类：$_autoCategory]'))
     );
   }
 
@@ -248,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         const Icon(Icons.auto_awesome, size: 18),
                         const SizedBox(width: 8),
-                        Text('自动分类：', style: TextStyle(fontWeight: FontWeight.bold)),
+                        const Text('自动分类：', style: TextStyle(fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
                         _buildCategoryChip(_autoCategory),
                         const SizedBox(width: 8),

@@ -286,11 +286,11 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 18),
-                      const SizedBox(width: 8),
-                      const Text('使用说明', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Icon(Icons.info_outline, size: 18),
+                      SizedBox(width: 8),
+                      Text('使用说明', style: TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -315,7 +315,7 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('• ', style: TextStyle(color: Colors.blue[700]), fontSize: 12),
+          Text('• ', style: TextStyle(color: Colors.blue[700], fontSize: 12)),
           Expanded(
             child: Text(text, style: const TextStyle(fontSize: 12, height: 1.5)),
           ),

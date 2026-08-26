@@ -62,6 +62,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (confirm == true) {
       await _dbHelper.deleteRecord(widget.recordId);
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (c) => const HomeScreen()),
@@ -73,9 +74,8 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _shareRecord() async {
     if (_record == null) return;
     String shareText = '【${_record!.title}】\n\n摘要：${_record!.summary}\n\n原文：${_record!.content}\n\n分类：${_record!.category}';
-    // 可通过 share_plus 实现系统分享
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('内容已复制，可手动分享：\n${_record!.summary}')),
+      SnackBar(content: Text(shareText)),
     );
   }
 
@@ -172,11 +172,11 @@ class _DetailScreenState extends State<DetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      const Icon(Icons.article, size: 18),
-                      const SizedBox(width: 8),
-                      const Text('原始内容', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Icon(Icons.article, size: 18),
+                      SizedBox(width: 8),
+                      Text('原始内容', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ],
                   ),
                   const SizedBox(height: 10),

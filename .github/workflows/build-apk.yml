@@ -27,8 +27,17 @@ jobs:
 
       - name: Download Gradle wrapper jar
         run: |
-          wget -q -O android/gradle/wrapper/gradle-wrapper.jar \
-            https://github.com/gradle/gradle/raw/v8.3.0/gradle/wrapper/gradle-wrapper.jar
+          mkdir -p android/gradle/wrapper
+          for url in \
+            "https://raw.githubusercontent.com/gradle/gradle/v8.3.0/gradle/wrapper/gradle-wrapper.jar" \
+            "https://services.gradle.org/distributions-snapshots/gradle-8.3-wrapper.jar"; do
+            echo "Trying: $url"
+            if curl -fSL --retry 3 --retry-delay 5 -o android/gradle/wrapper/gradle-wrapper.jar "$url" 2>/dev/null; then
+              echo "Downloaded successfully"
+              break
+            fi
+          done
+          test -s android/gradle/wrapper/gradle-wrapper.jar
           chmod +x android/gradlew
 
       - name: Decode keystore

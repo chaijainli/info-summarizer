@@ -1,0 +1,39 @@
+# Flutter/Dart
+.dart_tool/
+.pub-cache/
+build/
+*.iml
+!.packages
+!packages/.packages
+.packages
+
+# IDE
+.idea/
+.vscode/
+
+# Android
+android/local.properties
+android/app/build/
+android/app/**/*.apk
+android/app/**/*.aab
+
+# iOS
+ios/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+Pods/
+
+# Mac
+.DS_Store
+Flutter/
+Flutter.framework
+Runner.xcworkspace
+
+# Debug logs
+debug.log

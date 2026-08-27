@@ -6,3 +6,7 @@
 -keep class io.flutter.view.** { *; }
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
+
+# flutter_secure_storage native bridge
+-keep class com.it_nomads.fluttersecurestorage.** { *; }
+-keep class androidx.security.crypto.** { *; }

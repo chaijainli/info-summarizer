@@ -18,8 +18,8 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            if (System.getenv("KEYSTORE_PASSWORD").isNotEmpty()) {
+        if (System.getenv("KEYSTORE_PASSWORD").isNotEmpty()) {
+            create("release") {
                 storeFile = file(System.getenv("KEYSTORE_PATH") ?: "upload-keystore.jks")
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
@@ -37,17 +37,15 @@ android {
     }
 
     buildTypes {
-        release {
-            if (System.getenv("KEYSTORE_PASSWORD").isNotEmpty()) {
-                signingConfig = signingConfigs.getByName("release")
-            } else {
-                signingConfig = signingConfigs.getByName("debug")
-            }
-            minifyEnabled = true
+        getByName("release") {
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (signingConfigs.contains("release")) {
+                signingConfig = signingConfigs["release"]
+            }
         }
     }
 }

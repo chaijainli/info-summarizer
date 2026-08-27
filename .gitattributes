@@ -1,1 +1,15 @@
 * text=auto eol=lf
+
+# Binary files: don't convert line endings
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.apk binary
+*.aab binary
+*.so binary
+*.db binary
+*.sqlite3 binary
+*.sqlite binary

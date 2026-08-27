@@ -18,8 +18,8 @@ android {
     }
 
     signingConfigs {
-        if (System.getenv("KEYSTORE_PASSWORD").isNotEmpty()) {
-            create("release") {
+        create("release") {
+            if (System.getenv("KEYSTORE_PASSWORD").isNotEmpty()) {
                 storeFile = file(System.getenv("KEYSTORE_PATH") ?: "upload-keystore.jks")
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
@@ -43,9 +43,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (signingConfigs.contains("release")) {
-                signingConfig = signingConfigs["release"]
-            }
+            signingConfig = signingConfigs["release"]
         }
     }
 }

@@ -25,12 +25,8 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
-      - name: Download Gradle wrapper jar
+      - name: Verify Gradle wrapper
         run: |
-          mkdir -p android/gradle/wrapper
-          curl -fSL --retry 5 --retry-delay 5 \
-            -o android/gradle/wrapper/gradle-wrapper.jar \
-            "https://raw.githubusercontent.com/gradle/gradle/v8.3.0/gradle/wrapper/gradle-wrapper.jar"
           test -s android/gradle/wrapper/gradle-wrapper.jar
           chmod +x android/gradlew
 

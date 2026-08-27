@@ -19,7 +19,7 @@ android {
 
     signingConfigs {
         create("release") {
-            if (System.getenv("KEYSTORE_PASSWORD").isNotEmpty()) {
+            if (System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty() ?: false) {
                 storeFile = file(System.getenv("KEYSTORE_PATH") ?: "upload-keystore.jks")
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")

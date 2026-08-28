@@ -25,6 +25,9 @@ jobs:
           flutter-version: '3.24.0'
           channel: 'stable'
 
+      - name: Set Flutter env
+        run: echo "FLUTTER_ROOT=$(ls /opt/hostedtoolcache/flutter/stable-*/x64 2>/dev/null | tail -1)" >> "$GITHUB_ENV"
+
       - name: Verify Gradle wrapper
         run: |
           test -s android/gradle/wrapper/gradle-wrapper.jar

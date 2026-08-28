@@ -12,8 +12,9 @@ pluginManagement {
         null
     }
 
-    if (flutterSdkPath != null) {
-        includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    val flutterRoot = flutterSdkPath ?: System.getenv("FLUTTER_ROOT")
+    if (flutterRoot != null) {
+        includeBuild("$flutterRoot/packages/flutter_tools/gradle")
     }
 
     repositories {

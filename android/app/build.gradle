@@ -47,8 +47,9 @@ android {
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             // Use debug signing for testing, or release signing if keystore is configured
-            if (signingConfigs.release != null) {
-                signingConfig signingConfigs.release
+            def releaseSigning = signingConfigs.findByName('release')
+            if (releaseSigning != null) {
+                signingConfig releaseSigning
             } else {
                 signingConfig signingConfigs.debug
             }

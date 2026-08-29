@@ -1,7 +1,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:crypto';
 
 /// 安全存储封装：使用 Android Keystore / iOS Keychain 加密存储敏感数据
 /// API Key 等设备端敏感配置通过此层存取，不在 SQLite 中明文保存
@@ -177,10 +177,10 @@ class SecureStorage {
     final buffer = BytesBuilder(copy: false);
     var counter = 0;
     while (buffer.length < length) {
-      buffer.add(sha256.convert([...key, counter.toSigned(8)]).bytes);
+      buffer.add(sha256.convert([...key, counter & 0xFF]).bytes);
       counter++;
     }
-    return buffer.take(length).toList();
+    return buffer.takeBytes(length).toList();
   }
 
   /// 保存 LLM 启用状态

@@ -246,10 +246,10 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.orange[200]!),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.info_outline, size: 18, color: Colors.orange),
                         SizedBox(width: 8),
@@ -259,8 +259,8 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       '当前未配置大模型，系统已自动使用默认配置。\n'
                       '如需自定义，请在下方填写 API 地址、API Key 和模型名称。',
                       style: TextStyle(fontSize: 12, color: Colors.grey),

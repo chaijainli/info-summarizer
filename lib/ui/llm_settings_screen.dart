@@ -12,6 +12,9 @@ class LlmSettingsScreen extends StatefulWidget {
 }
 
 class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
+  final _baseUrlController = TextEditingController();
+  final _apiKeyController = TextEditingController();
+  final _modelNameController = TextEditingController();
   final _temperatureController = TextEditingController();
   final _maxTokensController = TextEditingController();
   final _systemPromptController = TextEditingController();
@@ -21,29 +24,34 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
   bool _isTesting = false;
   bool _isSaving = false;
   String? _testResult;
-
-  // 内置配置（不可见，但用于保存和测试）
-  late Future<String?> _builtinApiKeyFuture;
-  late Future<String?> _builtinBaseUrlFuture;
-  late Future<String?> _builtinModelFuture;
+  
+  // 跟踪是否使用了内置配置
+  bool _usingBuiltin = false;
 
   @override
   void initState() {
     super.initState();
-    _loadBuiltinConfigs();
     _loadConfig();
-  }
-
-  void _loadBuiltinConfigs() {
-    _builtinApiKeyFuture = SecureStorage.instance.getApiKey();
-    _builtinBaseUrlFuture = SecureStorage.instance.getBaseUrl();
-    _builtinModelFuture = SecureStorage.instance.getModelName();
   }
 
   Future<void> _loadConfig() async {
     final config = await _db.getConfig();
+    
+    // 检查是否有用户配置
+    final userApiKey = await SecureStorage.instance.getApiKey();
+    final userBaseUrl = await SecureStorage.instance.getBaseUrl();
+    final userModelName = await SecureStorage.instance.getModelName();
+    
+    // 如果用户没有配置任何一项，则使用内置配置
+    _usingBuiltin = (userApiKey == null || userApiKey.isEmpty) &&
+                    (userBaseUrl == null || userBaseUrl.isEmpty) &&
+                    (userModelName == null || userModelName.isEmpty);
+    
     setState(() {
       _enabled = config.enabled;
+      _baseUrlController.text = config.baseUrl;
+      _apiKeyController.text = userApiKey ?? '';
+      _modelNameController.text = config.modelName;
       _temperatureController.text = config.temperature.toStringAsFixed(1);
       _maxTokensController.text = config.maxTokens.toString();
       _systemPromptController.text = config.systemPrompt ?? '';
@@ -56,12 +64,35 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
     setState(() { _isSaving = true; });
 
     try {
-      final apiKey = await _builtinApiKeyFuture;
-      final baseUrl = await _builtinBaseUrlFuture;
-      final modelName = await _builtinModelFuture;
+      // 获取 API Key（优先用户设置，否则使用内置）
+      String? apiKey;
+      if (_apiKeyController.text.trim().isNotEmpty) {
+        apiKey = _apiKeyController.text.trim();
+        await SecureStorage.instance.saveApiKey(apiKey);
+      } else {
+        apiKey = await SecureStorage.instance.getApiKey(); // 回退到内置
+      }
+
+      // 获取 Base URL（优先用户设置，否则使用内置）
+      String? baseUrl;
+      if (_baseUrlController.text.trim().isNotEmpty) {
+        baseUrl = _baseUrlController.text.trim();
+        await SecureStorage.instance.saveBaseUrl(baseUrl);
+      } else {
+        baseUrl = await SecureStorage.instance.getBaseUrl(); // 回退到内置
+      }
+
+      // 获取 Model Name（优先用户设置，否则使用内置）
+      String? modelName;
+      if (_modelNameController.text.trim().isNotEmpty) {
+        modelName = _modelNameController.text.trim();
+        await SecureStorage.instance.saveModelName(modelName);
+      } else {
+        modelName = await SecureStorage.instance.getModelName(); // 回退到内置
+      }
 
       if (apiKey == null || baseUrl == null || modelName == null) {
-        throw Exception('内置大模型配置未正确加载');
+        throw Exception('大模型配置不完整，请检查');
       }
 
       final config = LlmConfig(
@@ -82,16 +113,16 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Row(
             children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('配置已保存成功'),
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Text('配置已保存成功${apiKey != _apiKeyController.text.trim() ? '（使用内置 API Key）' : ''}'),
             ],
           ),
           backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
 
@@ -128,14 +159,34 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
   Future<void> _testConnection() async {
     setState(() { _isTesting = true; _testResult = null; });
 
-    final apiKey = await _builtinApiKeyFuture;
-    final baseUrl = await _builtinBaseUrlFuture;
-    final modelName = await _builtinModelFuture;
+    // 获取 API Key（优先用户设置，否则使用内置）
+    String? apiKey;
+    if (_apiKeyController.text.trim().isNotEmpty) {
+      apiKey = _apiKeyController.text.trim();
+    } else {
+      apiKey = await SecureStorage.instance.getApiKey();
+    }
+
+    // 获取 Base URL（优先用户设置，否则使用内置）
+    String? baseUrl;
+    if (_baseUrlController.text.trim().isNotEmpty) {
+      baseUrl = _baseUrlController.text.trim();
+    } else {
+      baseUrl = await SecureStorage.instance.getBaseUrl();
+    }
+
+    // 获取 Model Name（优先用户设置，否则使用内置）
+    String? modelName;
+    if (_modelNameController.text.trim().isNotEmpty) {
+      modelName = _modelNameController.text.trim();
+    } else {
+      modelName = await SecureStorage.instance.getModelName();
+    }
 
     if (apiKey == null || baseUrl == null || modelName == null) {
       setState(() {
         _isTesting = false;
-        _testResult = '错误：内置大模型配置未正确加载';
+        _testResult = '错误：大模型配置不完整，请先填写或使用内置配置';
       });
       return;
     }
@@ -178,36 +229,82 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
             ),
             const Divider(),
 
-            // 内置信息提示
-            Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.orange[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange[200]!),
+            // 提示当前配置状态
+            if (_usingBuiltin)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.orange[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange[200]!),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Text(
+                          '未配置大模型',
+                          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '当前将使用内置的 SiliconFlow 大模型（Qwen/Qwen3-8B）。\n'
+                      '你也可以在下方填写自己的 API 配置来覆盖内置配置。',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.lock_outline, size: 18, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text(
-                        '已集成 SiliconFlow 大模型',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'API 地址、密钥和模型 ID 已加密内置，无需手动配置。',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
+
+            // API 配置
+            const Text('API 配置', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _baseUrlController,
+              decoration: InputDecoration(
+                labelText: 'API 地址',
+                hintText: _usingBuiltin ? '留空使用内置配置（SiliconFlow）' : 'https://api.openai.com/v1',
+                prefixIcon: const Icon(Icons.link),
+                border: const OutlineInputBorder(),
+                helperText: _usingBuiltin ? '可选：留空将使用内置 SiliconFlow API' : null,
               ),
+              maxLines: 1,
             ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _apiKeyController,
+              decoration: InputDecoration(
+                labelText: 'API Key',
+                hintText: _usingBuiltin ? '留空使用内置配置' : 'sk-xxxxxxxxxxxxxxxxxxxx',
+                prefixIcon: const Icon(Icons.key),
+                border: const OutlineInputBorder(),
+                helperText: _usingBuiltin ? '可选：留空将使用内置 API Key' : null,
+              ),
+              maxLines: 1,
+              obscureText: true,
+            ),
+            const SizedBox(height: 12),
+
+            TextField(
+              controller: _modelNameController,
+              decoration: InputDecoration(
+                labelText: '模型名称',
+                hintText: _usingBuiltin ? '留空使用内置配置（Qwen/Qwen3-8B）' : 'gpt-4o-mini',
+                prefixIcon: const Icon(Icons.model_training),
+                border: const OutlineInputBorder(),
+                helperText: _usingBuiltin ? '可选：留空将使用内置模型' : null,
+              ),
+              maxLines: 1,
+            ),
+            const SizedBox(height: 20),
 
             // 高级配置
             const Text('高级设置', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -345,11 +442,11 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  _buildTip('已集成 SiliconFlow 大模型服务（Qwen/Qwen3-8B）'),
+                  _buildTip('支持 OpenAI 兼容接口（OpenAI、DeepSeek、通义千问等）'),
+                  _buildTip('已集成 SiliconFlow 大模型作为默认配置（Qwen/Qwen3-8B）'),
+                  _buildTip('留空 API 字段将自动使用内置配置，填写后则使用自定义配置'),
                   _buildTip('所有敏感信息均已加密存储，不会明文显示'),
-                  _buildTip('开启后每次保存记录时自动调用大模型分类和摘要'),
                   _buildTip('大模型不可用时会自动降级为本地关键词分类'),
-                  _buildTip('可自定义 Temperature、Max Tokens 等参数'),
                 ],
               ),
             ),
@@ -377,6 +474,9 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
 
   @override
   void dispose() {
+    _baseUrlController.dispose();
+    _apiKeyController.dispose();
+    _modelNameController.dispose();
     _temperatureController.dispose();
     _maxTokensController.dispose();
     _systemPromptController.dispose();

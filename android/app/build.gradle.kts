@@ -8,6 +8,8 @@ android {
     namespace = "com.example.info_summarizer"
     compileSdk = 34
 
+    val releaseKeystoreEnabled = (System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty()) ?: false
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -18,7 +20,6 @@ android {
     }
 
     signingConfigs {
-        val releaseKeystoreEnabled = (System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty()) ?: false
         if (releaseKeystoreEnabled) {
             create("release") {
                 storeFile = file(System.getenv("KEYSTORE_PATH") ?: "upload-keystore.jks")
@@ -44,7 +45,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            if (signingConfigs["release"] != null) {
+            if (releaseKeystoreEnabled) {
                 signingConfig = signingConfigs["release"]
             }
         }

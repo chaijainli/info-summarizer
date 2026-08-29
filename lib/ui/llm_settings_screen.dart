@@ -12,9 +12,6 @@ class LlmSettingsScreen extends StatefulWidget {
 }
 
 class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
-  final _baseUrlController = TextEditingController();
-  final _apiKeyController = TextEditingController();
-  final _modelNameController = TextEditingController();
   final _temperatureController = TextEditingController();
   final _maxTokensController = TextEditingController();
   final _systemPromptController = TextEditingController();
@@ -25,20 +22,28 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
   bool _isSaving = false;
   String? _testResult;
 
+  // 内置配置（不可见，但用于保存和测试）
+  late Future<String?> _builtinApiKeyFuture;
+  late Future<String?> _builtinBaseUrlFuture;
+  late Future<String?> _builtinModelFuture;
+
   @override
   void initState() {
     super.initState();
+    _loadBuiltinConfigs();
     _loadConfig();
+  }
+
+  void _loadBuiltinConfigs() {
+    _builtinApiKeyFuture = SecureStorage.instance.getApiKey();
+    _builtinBaseUrlFuture = SecureStorage.instance.getBaseUrl();
+    _builtinModelFuture = SecureStorage.instance.getModelName();
   }
 
   Future<void> _loadConfig() async {
     final config = await _db.getConfig();
-    final apiKey = await SecureStorage.instance.getApiKey() ?? '';
     setState(() {
       _enabled = config.enabled;
-      _baseUrlController.text = config.baseUrl;
-      _apiKeyController.text = apiKey;
-      _modelNameController.text = config.modelName;
       _temperatureController.text = config.temperature.toStringAsFixed(1);
       _maxTokensController.text = config.maxTokens.toString();
       _systemPromptController.text = config.systemPrompt ?? '';
@@ -46,15 +51,23 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
   }
 
   Future<void> _saveConfig() async {
-    if (_isSaving) return; // 防止重复点击
+    if (_isSaving) return;
     
     setState(() { _isSaving = true; });
 
     try {
+      final apiKey = await _builtinApiKeyFuture;
+      final baseUrl = await _builtinBaseUrlFuture;
+      final modelName = await _builtinModelFuture;
+
+      if (apiKey == null || baseUrl == null || modelName == null) {
+        throw Exception('内置大模型配置未正确加载');
+      }
+
       final config = LlmConfig(
         provider: 'openai',
-        baseUrl: _baseUrlController.text.trim(),
-        modelName: _modelNameController.text.trim(),
+        baseUrl: baseUrl,
+        modelName: modelName,
         temperature: double.tryParse(_temperatureController.text) ?? 0.3,
         maxTokens: int.tryParse(_maxTokensController.text) ?? 200,
         enabled: _enabled,
@@ -64,21 +77,17 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
       );
 
       await _db.saveConfig(config);
-
-      // API Key 使用加密存储
-      await SecureStorage.instance.saveApiKey(_apiKeyController.text.trim());
       await SecureStorage.instance.saveLlmEnabled(_enabled);
 
       if (!mounted) return;
       
-      // 显示保存成功提示
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(
             children: [
               Icon(Icons.check_circle, color: Colors.white),
               SizedBox(width: 12),
-              Text('配置已保存成功（API Key 已加密）'),
+              Text('配置已保存成功'),
             ],
           ),
           backgroundColor: Colors.green,
@@ -89,7 +98,6 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
     } catch (e) {
       if (!mounted) return;
       
-      // 显示保存失败错误
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -111,10 +119,8 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
       }
     }
     
-    // 在状态重置后再测试连接，避免阻塞保存按钮
-    if (mounted && 
-        _apiKeyController.text.trim().isNotEmpty && 
-        _baseUrlController.text.trim().isNotEmpty) {
+    // 在状态重置后再测试连接
+    if (mounted) {
       await _testConnection();
     }
   }
@@ -122,14 +128,26 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
   Future<void> _testConnection() async {
     setState(() { _isTesting = true; _testResult = null; });
 
+    final apiKey = await _builtinApiKeyFuture;
+    final baseUrl = await _builtinBaseUrlFuture;
+    final modelName = await _builtinModelFuture;
+
+    if (apiKey == null || baseUrl == null || modelName == null) {
+      setState(() {
+        _isTesting = false;
+        _testResult = '错误：内置大模型配置未正确加载';
+      });
+      return;
+    }
+
     final config = LlmConfig(
       provider: 'openai',
-      baseUrl: _baseUrlController.text.trim(),
-      modelName: _modelNameController.text.trim(),
+      baseUrl: baseUrl,
+      modelName: modelName,
     );
 
     final result = await LlmService.testConnection(
-      config, apiKey: _apiKeyController.text.trim(),
+      config, apiKey: apiKey,
     );
 
     setState(() {
@@ -160,46 +178,36 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
             ),
             const Divider(),
 
-            // 基础配置
-            const Text('API 配置', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: _baseUrlController,
-              decoration: const InputDecoration(
-                labelText: 'API 地址',
-                hintText: 'https://api.openai.com/v1',
-                prefixIcon: Icon(Icons.link),
-                border: OutlineInputBorder(),
+            // 内置信息提示
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.orange[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange[200]!),
               ),
-              maxLines: 1,
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: _apiKeyController,
-              decoration: const InputDecoration(
-                labelText: 'API Key',
-                hintText: 'sk-xxxxxxxxxxxxxxxxxxxx',
-                prefixIcon: Icon(Icons.key),
-                border: OutlineInputBorder(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.lock_outline, size: 18, color: Colors.orange),
+                      SizedBox(width: 8),
+                      Text(
+                        '已集成 SiliconFlow 大模型',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'API 地址、密钥和模型 ID 已加密内置，无需手动配置。',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
               ),
-              maxLines: 1,
-              obscureText: true,
             ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: _modelNameController,
-              decoration: const InputDecoration(
-                labelText: '模型名称',
-                hintText: 'gpt-4o-mini',
-                prefixIcon: Icon(Icons.model_training),
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 1,
-            ),
-            const SizedBox(height: 20),
 
             // 高级配置
             const Text('高级设置', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
@@ -240,7 +248,7 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
               controller: _systemPromptController,
               decoration: const InputDecoration(
                 labelText: '系统提示词（可选）',
-                hintText: '你是专业的信息分类助手，擅长分析用户输入...',
+                hintText: '你是专业的信息分类助手...',
                 prefixIcon: Icon(Icons.message),
                 border: OutlineInputBorder(),
               ),
@@ -337,11 +345,11 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  _buildTip('支持 OpenAI 兼容接口（OpenAI、DeepSeek、通义千问等）'),
-                  _buildTip('Base URL 填入模型 API 地址，如 https://api.openai.com/v1'),
-                  _buildTip('API Key 仅存储在本地设备，不会上传到任何服务器'),
+                  _buildTip('已集成 SiliconFlow 大模型服务（Qwen/Qwen3-8B）'),
+                  _buildTip('所有敏感信息均已加密存储，不会明文显示'),
                   _buildTip('开启后每次保存记录时自动调用大模型分类和摘要'),
                   _buildTip('大模型不可用时会自动降级为本地关键词分类'),
+                  _buildTip('可自定义 Temperature、Max Tokens 等参数'),
                 ],
               ),
             ),
@@ -369,9 +377,6 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
 
   @override
   void dispose() {
-    _baseUrlController.dispose();
-    _apiKeyController.dispose();
-    _modelNameController.dispose();
     _temperatureController.dispose();
     _maxTokensController.dispose();
     _systemPromptController.dispose();

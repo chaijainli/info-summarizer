@@ -46,35 +46,77 @@ class _LlmSettingsScreenState extends State<LlmSettingsScreen> {
   }
 
   Future<void> _saveConfig() async {
+    if (_isSaving) return; // 防止重复点击
+    
     setState(() { _isSaving = true; });
 
-    final config = LlmConfig(
-      provider: 'openai',
-      baseUrl: _baseUrlController.text.trim(),
-      modelName: _modelNameController.text.trim(),
-      temperature: double.tryParse(_temperatureController.text) ?? 0.3,
-      maxTokens: int.tryParse(_maxTokensController.text) ?? 200,
-      enabled: _enabled,
-      systemPrompt: _systemPromptController.text.trim().isEmpty
-          ? null
-          : _systemPromptController.text.trim(),
-    );
+    try {
+      final config = LlmConfig(
+        provider: 'openai',
+        baseUrl: _baseUrlController.text.trim(),
+        modelName: _modelNameController.text.trim(),
+        temperature: double.tryParse(_temperatureController.text) ?? 0.3,
+        maxTokens: int.tryParse(_maxTokensController.text) ?? 200,
+        enabled: _enabled,
+        systemPrompt: _systemPromptController.text.trim().isEmpty
+            ? null
+            : _systemPromptController.text.trim(),
+      );
 
-    await _db.saveConfig(config);
+      await _db.saveConfig(config);
 
-    // API Key 使用加密存储
-    await SecureStorage.instance.saveApiKey(_apiKeyController.text.trim());
-    await SecureStorage.instance.saveLlmEnabled(_enabled);
+      // API Key 使用加密存储
+      await SecureStorage.instance.saveApiKey(_apiKeyController.text.trim());
+      await SecureStorage.instance.saveLlmEnabled(_enabled);
 
-    setState(() {
-      _isSaving = false;
-      _testResult = null;
-    });
+      if (!mounted) return;
+      
+      // 显示保存成功提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text('配置已保存成功（API Key 已加密）'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('配置已保存（API Key 已加密）'), duration: Duration(seconds: 2))
-    );
+    } catch (e) {
+      if (!mounted) return;
+      
+      // 显示保存失败错误
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 12),
+              Text('保存失败：${e.toString()}'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+    
+    // 在状态重置后再测试连接，避免阻塞保存按钮
+    if (mounted && 
+        _apiKeyController.text.trim().isNotEmpty && 
+        _baseUrlController.text.trim().isNotEmpty) {
+      await _testConnection();
+    }
   }
 
   Future<void> _testConnection() async {

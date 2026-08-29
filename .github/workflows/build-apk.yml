@@ -24,9 +24,7 @@ jobs:
         with:
           flutter-version: '3.24.0'
           channel: 'stable'
-
-      - name: Set Flutter env
-        run: echo "FLUTTER_ROOT=$(ls /opt/hostedtoolcache/flutter/stable-*/x64 2>/dev/null | tail -1)" >> "$GITHUB_ENV"
+          # subosito/flutter-action already sets ${{ env.FLUTTER_ROOT }} for us
 
       - name: Verify Gradle wrapper
         run: |
@@ -60,9 +58,11 @@ jobs:
           cat android/local.properties || echo "(not found)"
           echo "--- file path check ---"
           ls -la android/local.properties 2>/dev/null || true
-          echo "--- Flutter tools gradle path ---"
           if [ -n "$FLUTTER_ROOT" ]; then
-            ls -la "$FLUTTER_ROOT/packages/flutter_tools/gradle" 2>/dev/null || echo "Flutter tools gradle NOT FOUND at $FLUTTER_ROOT/packages/flutter_tools/gradle"
+            echo "--- Flutter tools gradle path ---"
+            ls -la "$FLUTTER_ROOT/packages/flutter_tools/gradle" 2>/dev/null || echo "Flutter tools gradle NOT FOUND"
+          else
+            echo "ERROR: FLUTTER_ROOT is not set!"
           fi
 
       - name: Analyze

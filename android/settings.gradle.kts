@@ -1,17 +1,30 @@
 pluginManagement {
     val flutterSdkPath = run {
+        // Try local.properties first
         val propsFile = file("local.properties")
-        require(propsFile.exists()) {
-            "android/local.properties not found. " +
-                "Flutter's Gradle plugin cannot be resolved without the Flutter SDK path. " +
-                "Run 'flutter pub get' once locally to generate this file."
+        var sdk: String? = null
+        if (propsFile.exists()) {
+            val properties = java.util.Properties()
+            propsFile.inputStream().use { properties.load(it) }
+            sdk = properties.getProperty("flutter.sdk")
         }
-        val properties = java.util.Properties()
-        propsFile.inputStream().use { properties.load(it) }
-        val sdk = properties.getProperty("flutter.sdk")
+
+        // Fallback to FLUTTER_ROOT environment variable (set by GitHub Actions)
+        if (sdk == null || sdk.isBlank()) {
+            sdk = System.getenv("FLUTTER_ROOT")
+        }
+
         require(!sdk.isNullOrBlank()) {
-            "flutter.sdk is missing or empty in android/local.properties"
+            """
+            Flutter SDK location cannot be determined.
+            - local.properties not found or does not contain 'flutter.sdk' property
+            - Environment variable FLUTTER_ROOT is not set
+            In CI: ensure 'flutter pub get' ran successfully before Gradle build,
+              and that FLUTTER_ROOT is exported in the environment.
+            Locally: run 'flutter pub get' at least once to generate android/local.properties.
+            """.trimIndent()
         }
+
         sdk
     }
 

@@ -18,8 +18,9 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            if (System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty() ?: false) {
+        val releaseKeystoreEnabled = (System.getenv("KEYSTORE_PASSWORD")?.isNotEmpty()) ?: false
+        if (releaseKeystoreEnabled) {
+            create("release") {
                 storeFile = file(System.getenv("KEYSTORE_PATH") ?: "upload-keystore.jks")
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
@@ -37,13 +38,15 @@ android {
     }
 
     buildTypes {
-        getByName("release") {
+        release {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs["release"]
+            if (signingConfigs["release"] != null) {
+                signingConfig = signingConfigs["release"]
+            }
         }
     }
 }

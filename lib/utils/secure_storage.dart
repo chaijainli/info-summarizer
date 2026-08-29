@@ -174,13 +174,13 @@ class SecureStorage {
       utf8.encode(_part1 + _part2 + _part3),
     ).bytes;
 
-    final buffer = BytesBuilder(copy: false);
+    final result = <int>[];
     var counter = 0;
-    while (buffer.length < length) {
-      buffer.add(sha256.convert([...key, counter & 0xFF]).bytes);
+    while (result.length < length) {
+      result.addAll(sha256.convert([...key, counter & 0xFF]).bytes);
       counter++;
     }
-    return buffer.takeBytes(length).toList();
+    return result.sublist(0, length);
   }
 
   /// 保存 LLM 启用状态

@@ -37,6 +37,3 @@ Runner.xcworkspace
 
 # Debug logs
 debug.log
-
-# Security: 不要提交包含解密密钥的源文件
-lib/utils/secure_storage.dart

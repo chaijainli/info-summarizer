@@ -60,12 +60,19 @@ jobs:
           cat android/local.properties || echo "(not found)"
           echo "--- file path check ---"
           ls -la android/local.properties 2>/dev/null || true
+          echo "--- Flutter tools gradle path ---"
+          if [ -n "$FLUTTER_ROOT" ]; then
+            ls -la "$FLUTTER_ROOT/packages/flutter_tools/gradle" 2>/dev/null || echo "Flutter tools gradle NOT FOUND at $FLUTTER_ROOT/packages/flutter_tools/gradle"
+          fi
 
       - name: Analyze
         run: flutter analyze --no-fatal-warnings
 
       - name: Generate launcher icons
         run: flutter pub run flutter_launcher_icons
+
+      - name: Debug Gradle project structure
+        run: cd android && ./gradlew projects
 
       - name: Build APK
         run: flutter build apk --release

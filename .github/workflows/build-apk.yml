@@ -38,7 +38,7 @@ jobs:
         run: |
           if [ -n "$KEYSTORE_FILE" ]; then
             echo "$KEYSTORE_FILE" | base64 --decode > android/app/upload-keystore.jks
-            echo "KEYSTORE_PATH=android/app/upload-keystore.jks" >> "$GITHUB_ENV"
+            echo "KEYSTORE_PATH=upload-keystore.jks" >> "$GITHUB_ENV"
             echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
             echo "KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
             echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"

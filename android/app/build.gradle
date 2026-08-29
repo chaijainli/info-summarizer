@@ -40,9 +40,8 @@ android {
     
     buildTypes {
         release {
-            // Temporarily disable minification for debugging
-            minifyEnabled false
-            shrinkResources false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             // Only use release signing if keystore is configured
             if (hasKeystore) {

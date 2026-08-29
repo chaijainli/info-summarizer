@@ -1,31 +1,19 @@
 pluginManagement {
     val flutterSdkPath = run {
-        // Try local.properties first
-        val propsFile = file("local.properties")
-        var sdk: String? = null
-        if (propsFile.exists()) {
-            val properties = java.util.Properties()
-            propsFile.inputStream().use { properties.load(it) }
-            sdk = properties.getProperty("flutter.sdk")
+        val properties = java.util.Properties()
+        val localPropertiesFile = file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { properties.load(it) }
+            val sdk = properties.getProperty("flutter.sdk")
+            if (!sdk.isNullOrEmpty()) return@run sdk
         }
-
-        // Fallback to FLUTTER_ROOT environment variable (set by GitHub Actions)
-        if (sdk == null || sdk.isBlank()) {
-            sdk = System.getenv("FLUTTER_ROOT")
+        
+        val envFlutterRoot = System.getenv("FLUTTER_ROOT")
+        require(!envFlutterRoot.isNullOrEmpty()) {
+            "Flutter SDK location not found. " +
+                "Please define flutter.sdk in local.properties or set FLUTTER_ROOT environment variable."
         }
-
-        require(!sdk.isNullOrBlank()) {
-            """
-            Flutter SDK location cannot be determined.
-            - local.properties not found or does not contain 'flutter.sdk' property
-            - Environment variable FLUTTER_ROOT is not set
-            In CI: ensure 'flutter pub get' ran successfully before Gradle build,
-              and that FLUTTER_ROOT is exported in the environment.
-            Locally: run 'flutter pub get' at least once to generate android/local.properties.
-            """.trimIndent()
-        }
-
-        sdk
+        envFlutterRoot
     }
 
     includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
@@ -38,7 +26,7 @@ pluginManagement {
 }
 
 plugins {
-    id("dev.flutter.flutter-gradle-plugin") apply false
+    id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.2.1" apply false
     id("org.jetbrains.kotlin.android") version "1.9.23" apply false
 }

@@ -71,9 +71,6 @@ jobs:
       - name: Generate launcher icons
         run: flutter pub run flutter_launcher_icons
 
-      - name: Debug Gradle project structure
-        run: cd android && ./gradlew projects
-
       - name: Build APK
         run: flutter build apk --release --verbose
 
